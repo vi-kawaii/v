@@ -1,0 +1,70 @@
+[gd_scene format=3 uid="uid://bc08c8jia7tpg"]
+
+[ext_resource type="Script" uid="uid://cdkl4utuirnvq" path="res://avatar.gd" id="1_702cj"]
+
+[sub_resource type="Animation" id="Animation_702cj"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("skeleton/base:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 10)]
+}
+
+[sub_resource type="Animation" id="Animation_tklf8"]
+resource_name = "idle"
+length = 2.0
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("skeleton/base:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0.0009999999, 1, 2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(0, 0), Vector2(0, 10), Vector2(0, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_702cj"]
+_data = {
+&"RESET": SubResource("Animation_702cj"),
+&"idle": SubResource("Animation_tklf8")
+}
+
+[node name="root" type="Node2D" unique_id=1781595485]
+script = ExtResource("1_702cj")
+
+[node name="skeleton" type="Skeleton2D" parent="." unique_id=1670529666]
+
+[node name="base" type="Bone2D" parent="skeleton" unique_id=1329447931]
+position = Vector2(0, 10)
+
+[node name="target" type="Node2D" parent="skeleton/base" unique_id=766868335]
+
+[node name="anchor" type="StaticBody2D" parent="skeleton/base" unique_id=1053921359]
+
+[node name="pin" type="PinJoint2D" parent="skeleton/base" unique_id=376463766]
+node_a = NodePath("../anchor")
+node_b = NodePath("../phys")
+softness = 3.0
+
+[node name="phys" type="PhysicalBone2D" parent="skeleton/base" unique_id=126624546]
+
+[node name="col" type="CollisionShape2D" parent="skeleton/base/phys" unique_id=2071988856]
+
+[node name="bone" type="Bone2D" parent="skeleton/base/phys" unique_id=822481590]
+top_level = true
+
+[node name="pic" type="Polygon2D" parent="." unique_id=1998090655]
+
+[node name="anim" type="AnimationPlayer" parent="." unique_id=1320426761]
+libraries/ = SubResource("AnimationLibrary_702cj")
+autoplay = &"idle"
