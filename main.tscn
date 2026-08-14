@@ -1,7 +1,92 @@
 [gd_scene format=3 uid="uid://i4q8lah861nd"]
 
+[ext_resource type="Script" uid="uid://bhma8jvhsco64" path="res://main.gd" id="1_0xm2m"]
 [ext_resource type="PackedScene" uid="uid://bc08c8jia7tpg" path="res://avatar.tscn" id="1_ig7tw"]
 
-[node name="root" type="Node2D" unique_id=1835131672]
+[node name="Main" type="Control" unique_id=404646998]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_0xm2m")
 
-[node name="root" parent="." unique_id=1781595485 instance=ExtResource("1_ig7tw")]
+[node name="root" type="Node2D" parent="." unique_id=1835131672]
+visible = false
+
+[node name="root" parent="root" unique_id=1781595485 instance=ExtResource("1_ig7tw")]
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1512538203]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopPanel" type="Panel" parent="VBoxContainer" unique_id=1140377075]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/TopPanel" unique_id=9214005]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Button_Select" type="Button" parent="VBoxContainer/TopPanel/HBoxContainer" unique_id=1498440499]
+layout_mode = 2
+text = "Select"
+
+[node name="Button_AddBone" type="Button" parent="VBoxContainer/TopPanel/HBoxContainer" unique_id=1704000271]
+layout_mode = 2
+text = "Add bone"
+
+[node name="Button_WeightPaint" type="Button" parent="VBoxContainer/TopPanel/HBoxContainer" unique_id=1210953148]
+layout_mode = 2
+text = "Weight paint"
+
+[node name="Button_Animate" type="Button" parent="VBoxContainer/TopPanel/HBoxContainer" unique_id=42017413]
+layout_mode = 2
+text = "Animate"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=1134530108]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CenterArea" type="Control" parent="VBoxContainer/HBoxContainer" unique_id=1106872306]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ColorRect" type="ColorRect" parent="VBoxContainer/HBoxContainer/CenterArea" unique_id=1635862483]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.20152658, 0.20152658, 0.20152658, 1)
+
+[node name="RightPanel" type="Panel" parent="VBoxContainer/HBoxContainer" unique_id=989812002]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer/RightPanel" unique_id=513537965]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "Properties"
+
+[node name="BottomPanel" type="Panel" parent="VBoxContainer" unique_id=1593737958]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/BottomPanel" unique_id=1460211110]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "Timeline"
