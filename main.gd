@@ -8,7 +8,7 @@ const DEBUG_MODE = true
 # Узел для рисования
 var center_area: Control
 
-# Скелет и кости
+# Скелет и кости (теперь ВНУТРИ center_area)
 var skeleton: Skeleton2D
 var root_bone: Bone2D
 var child_bone: Bone2D
@@ -93,13 +93,10 @@ func _ready():
 	# Подключаем отрисовку center_area
 	center_area.draw.connect(_on_center_area_draw)
 
-	# Создаём скелет
-	_create_skeleton()
-
 	# Ждем один кадр, чтобы размеры проинициализировались
-	call_deferred("_initialize_rig")
+	call_deferred("_create_skeleton_and_rig")
 
-	_log("Инициализация завершена")
+	_log("Инициализация запущена, ожидаем завершения...")
 
 func _log(message: String, is_error: bool = false):
 	if DEBUG_MODE:
@@ -108,46 +105,50 @@ func _log(message: String, is_error: bool = false):
 		else:
 			print("[LOG] " + message)
 
-func _create_skeleton():
-	# Создаём скелет
+func _create_skeleton_and_rig():
+	if not center_area:
+		_log("ОШИБКА: center_area не инициализирован!", true)
+		return
+
+	_log("=== СОЗДАНИЕ СКЕЛЕТА ВНУТРИ CENTER_AREA ===")
+
+	# 1. Создаём скелет как дочерний узел center_area
 	skeleton = Skeleton2D.new()
 	skeleton.name = "Skeleton"
-	add_child(skeleton)
+	center_area.add_child(skeleton)  # <- ТЕПЕРЬ ВНУТРИ center_area!
+	_log("Скелет добавлен в center_area")
 
-	# Создаём корневую кость
+	# 2. Создаём корневую кость
 	root_bone = Bone2D.new()
 	root_bone.name = "Root"
+	# Позиция в локальных координатах center_area
+	var center_pos = center_area.size / 2
+	root_bone.position = center_pos
 	skeleton.add_child(root_bone)
+	_log("Root создан в позиции: " + str(root_bone.position))
 
-	# Создаём дочернюю кость
+	# 3. Создаём дочернюю кость
 	child_bone = Bone2D.new()
 	child_bone.name = "Child"
 	child_bone.position = Vector2(0, 150)
 	root_bone.add_child(child_bone)
+	_log("Child создан, локальная позиция: " + str(child_bone.position))
+	_log("Child глобальная позиция (относительно center_area): " + str(child_bone.global_position))
 
-	# Генерируем текстуру
+	# 4. Генерируем текстуру
 	var image = Image.create(256, 256, false, Image.FORMAT_RGBA8)
 	for y in range(256):
 		for x in range(256):
 			image.set_pixel(x, y, Color(float(x)/255.0, float(y)/255.0, 0.5, 1.0))
 	texture = ImageTexture.create_from_image(image)
 
-	# Инициализируем деформированные вершины
+	# 5. Инициализируем деформированные вершины
 	deformed_vertices = mesh_vertices.duplicate()
 
-func _initialize_rig():
-	if not center_area or not root_bone:
-		return
-
-	# Устанавливаем корневую кость в центр
-	var center_pos = center_area.size / 2
-	root_bone.position = center_pos
-
-	_log("=== РИГ ИНИЦИАЛИЗИРОВАН ===")
+	_log("=== РИГ ГОТОВ ===")
 	_log("Размер CenterArea: " + str(center_area.size))
-	_log("Центр: " + str(center_pos))
-	_log("Root: " + str(root_bone.position))
-	_log("Child: " + str(child_bone.global_position))
+	_log("Root.position: " + str(root_bone.position))
+	_log("Child.global_position (локально в center_area): " + str(child_bone.global_position))
 
 	center_area.queue_redraw()
 
@@ -162,12 +163,12 @@ func _on_button_pressed(tool_name: String):
 func _on_center_area_gui_input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT and current_tool == "Select":
-			_try_start_drag()
+			_try_start_drag(event.position)
 		elif event.button_index == MOUSE_BUTTON_LEFT and current_tool == "Add Bone":
 			_add_bone_at_position(event.position)
 
 	elif event is InputEventMouseMotion and is_dragging_bone:
-		_update_drag()
+		_update_drag(event.position)
 
 	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if is_dragging_bone:
@@ -175,11 +176,12 @@ func _on_center_area_gui_input(event: InputEvent):
 
 func _add_bone_at_position(position: Vector2):
 	if not skeleton:
+		_log("ОШИБКА: Скелет не существует!", true)
 		return
 
 	var new_bone = Bone2D.new()
 	new_bone.name = "Bone_" + str(skeleton.get_child_count())
-	new_bone.position = position - root_bone.global_position
+	new_bone.position = position - root_bone.position  # Теперь локальные координаты
 	root_bone.add_child(new_bone)
 
 	# Простые веса для новой кости
@@ -191,12 +193,13 @@ func _add_bone_at_position(position: Vector2):
 	vertex_bone_weights = new_weights
 
 	center_area.queue_redraw()
-	_log("Добавлена кость: " + new_bone.name)
+	_log("Добавлена кость: " + new_bone.name + " в позиции " + str(new_bone.position))
 
 func _process(delta):
 	if not root_bone or not child_bone:
 		return
 
+	# Теперь все координаты локальные внутри center_area
 	var root_transform = root_bone.global_transform
 	var child_transform = child_bone.global_transform
 
@@ -221,7 +224,7 @@ func _process(delta):
 	if center_area:
 		center_area.queue_redraw()
 
-# --- Отрисовка в center_area ---
+# --- Отрисовка в center_area (все в локальных координатах) ---
 func _on_center_area_draw():
 	if not center_area or not texture:
 		return
@@ -232,7 +235,7 @@ func _on_center_area_draw():
 	for y in range(0, int(center_area.size.y), 50):
 		center_area.draw_line(Vector2(0, y), Vector2(center_area.size.x, y), Color(0.2, 0.2, 0.3, 0.3), 1.0)
 
-	# Рисуем меш
+	# Рисуем меш (вершины уже в локальных координатах)
 	if deformed_vertices.size() > 0:
 		for i in range(0, mesh_indices.size(), 3):
 			var idx0 = mesh_indices[i]
@@ -252,11 +255,12 @@ func _on_center_area_draw():
 			var colors = PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE])
 			center_area.draw_polygon(points, colors, tri_uvs, texture)
 
-	# Рисуем кости
+	# Рисуем кости (все в локальных координатах center_area)
 	if skeleton:
 		for child in skeleton.get_children():
 			if child is Bone2D:
 				var bone = child as Bone2D
+				# Теперь global_position = локальные координаты внутри center_area
 				var from = bone.global_position
 				var to = from
 
@@ -281,13 +285,13 @@ func _on_center_area_draw():
 				var text_pos = from + Vector2(0, -20)
 				center_area.draw_string(font, text_pos, bone.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 
-# --- Перетаскивание (ИСПРАВЛЕНО) ---
-func _try_start_drag():
+# --- Перетаскивание (теперь всё в локальных координатах) ---
+func _try_start_drag(local_pos: Vector2):
 	if not skeleton or not center_area:
 		return
 
-	# Получаем локальную позицию мыши внутри center_area
-	var mouse_local = center_area.get_local_mouse_position()
+	_log("=== ПОПЫТКА ВЫБОРА КОСТИ ===")
+	_log("Позиция клика (локальная): " + str(local_pos))
 
 	var closest_bone: Bone2D = null
 	var min_dist = BONE_SELECT_RADIUS
@@ -295,10 +299,10 @@ func _try_start_drag():
 	for child in skeleton.get_children():
 		if child is Bone2D:
 			var bone = child as Bone2D
-			# Преобразуем глобальную позицию кости в локальную внутри center_area
-			# Для Control используем: global_position - center_area.global_position
-			var bone_local = bone.global_position - center_area.global_position
-			var dist = bone_local.distance_to(mouse_local)
+			# Теперь global_position = локальные координаты внутри center_area
+			var bone_pos = bone.global_position
+			var dist = bone_pos.distance_to(local_pos)
+			_log("Кость " + bone.name + " в " + str(bone_pos) + ", дистанция: " + str(dist))
 
 			if dist < min_dist:
 				min_dist = dist
@@ -307,18 +311,20 @@ func _try_start_drag():
 	if closest_bone:
 		selected_bone = closest_bone
 		is_dragging_bone = true
-		# Для перетаскивания используем глобальные координаты
-		var mouse_global = center_area.get_global_mouse_position()
-		drag_offset = closest_bone.global_position - mouse_global
-		_log("Выбрана кость: " + selected_bone.name + " (дистанция: " + str(min_dist) + ")")
+		# Смещение в локальных координатах
+		drag_offset = closest_bone.global_position - local_pos
+		_log("=== ВЫБРАНА КОСТЬ ===")
+		_log("Имя: " + selected_bone.name)
+		_log("Позиция: " + str(selected_bone.global_position))
+		_log("Смещение: " + str(drag_offset))
 		center_area.queue_redraw()
 	else:
 		_log("Кость не найдена в радиусе " + str(BONE_SELECT_RADIUS))
 
-func _update_drag():
+func _update_drag(local_pos: Vector2):
 	if is_dragging_bone and selected_bone and center_area:
-		var mouse_global = center_area.get_global_mouse_position()
-		selected_bone.global_position = mouse_global + drag_offset
+		# Перемещаем в локальных координатах
+		selected_bone.global_position = local_pos + drag_offset
 
 func _end_drag():
 	if is_dragging_bone and selected_bone:
@@ -333,8 +339,12 @@ func _input(event: InputEvent):
 		match event.keycode:
 			KEY_F1:
 				_log("=== ОТЛАДКА ===")
-				_log("Root: " + str(root_bone.global_position if root_bone else "null"))
-				_log("Child: " + str(child_bone.global_position if child_bone else "null"))
+				if root_bone:
+					_log("Root.position: " + str(root_bone.position))
+					_log("Root.global_position: " + str(root_bone.global_position))
+				if child_bone:
+					_log("Child.position: " + str(child_bone.position))
+					_log("Child.global_position: " + str(child_bone.global_position))
 				_log("Вершины: " + str(deformed_vertices))
 				if center_area:
 					_log("CenterArea размер: " + str(center_area.size))
@@ -348,7 +358,6 @@ func _input(event: InputEvent):
 					_log("=== СБРОС ПОЗИЦИЙ ===")
 					_log("Root: " + str(root_bone.position))
 					_log("Child локально: " + str(child_bone.position))
-					_log("Child глобально: " + str(child_bone.global_position))
 
 func _notification(what):
 	match what:
