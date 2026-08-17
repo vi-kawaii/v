@@ -61,20 +61,6 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ViewportContainer" type="SubViewportContainer" parent="VBoxContainer/HBoxContainer/CenterArea" unique_id=349207127]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-stretch = true
-
-[node name="Viewport" type="SubViewport" parent="VBoxContainer/HBoxContainer/CenterArea/ViewportContainer" unique_id=901323728]
-size = Vector2i(1716, 922)
-
-[node name="RigRoot" type="Node2D" parent="VBoxContainer/HBoxContainer/CenterArea/ViewportContainer/Viewport" unique_id=608917431]
-
 [node name="RightPanel" type="Panel" parent="VBoxContainer/HBoxContainer" unique_id=989812002]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
