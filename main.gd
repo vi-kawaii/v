@@ -115,13 +115,12 @@ func _create_skeleton_and_rig():
 	# 1. Создаём скелет как дочерний узел center_area
 	skeleton = Skeleton2D.new()
 	skeleton.name = "Skeleton"
-	center_area.add_child(skeleton)  # <- ТЕПЕРЬ ВНУТРИ center_area!
+	center_area.add_child(skeleton)
 	_log("Скелет добавлен в center_area")
 
 	# 2. Создаём корневую кость
 	root_bone = Bone2D.new()
 	root_bone.name = "Root"
-	# Позиция в локальных координатах center_area
 	var center_pos = center_area.size / 2
 	root_bone.position = center_pos
 	skeleton.add_child(root_bone)
@@ -175,31 +174,68 @@ func _on_center_area_gui_input(event: InputEvent):
 			_end_drag()
 
 func _add_bone_at_position(position: Vector2):
-	if not skeleton:
-		_log("ОШИБКА: Скелет не существует!", true)
+	if not skeleton or not root_bone:
+		_log("ОШИБКА: Скелет или корневая кость не существуют!", true)
 		return
 
+	# Считаем ВСЕ кости в иерархии
+	var all_bones = _get_all_bones()
+	var bone_index = all_bones.size()
+
+	# Создаём новую кость
 	var new_bone = Bone2D.new()
-	new_bone.name = "Bone_" + str(skeleton.get_child_count())
-	new_bone.position = position - root_bone.position  # Теперь локальные координаты
+	new_bone.name = "Bone_" + str(bone_index)
+	new_bone.position = position - root_bone.position
 	root_bone.add_child(new_bone)
 
-	# Простые веса для новой кости
-	var new_weights = []
+	_log("Добавлена кость: " + new_bone.name + " с индексом " + str(bone_index))
+	_log("Позиция (локальная): " + str(new_bone.position))
+
+	# Обновляем веса для всех вершин
+	var updated_weights = []
 	for i in range(mesh_vertices.size()):
-		var dist = mesh_vertices[i].distance_to(Vector2.ZERO)
-		var weight = clamp(1.0 - dist / 300.0, 0.0, 1.0)
-		new_weights.append([[0, 1.0 - weight], [skeleton.get_child_count() - 1, weight]])
-	vertex_bone_weights = new_weights
+		var vertex_weights = vertex_bone_weights[i].duplicate()
+		vertex_weights.append([bone_index, 0.0])
+
+		# Нормализуем веса
+		var total_weight = 0.0
+		for bw in vertex_weights:
+			total_weight += bw[1]
+
+		if total_weight > 0.0:
+			for j in range(vertex_weights.size()):
+				vertex_weights[j][1] /= total_weight
+		else:
+			var equal_weight = 1.0 / vertex_weights.size()
+			for j in range(vertex_weights.size()):
+				vertex_weights[j][1] = equal_weight
+
+		updated_weights.append(vertex_weights)
+
+	vertex_bone_weights = updated_weights
+
+	_log("=== ОБНОВЛЕНЫ ВЕСА ===")
+	for i in range(mesh_vertices.size()):
+		_log("Вершина " + str(i) + ": " + str(vertex_bone_weights[i]))
 
 	center_area.queue_redraw()
-	_log("Добавлена кость: " + new_bone.name + " в позиции " + str(new_bone.position))
+	_log("Новая кость добавлена и веса обновлены")
+
+func _get_all_bones() -> Array:
+	var bones = []
+	_recursive_collect_bones(skeleton, bones)
+	return bones
+
+func _recursive_collect_bones(node: Node, bones: Array):
+	for child in node.get_children():
+		if child is Bone2D:
+			bones.append(child)
+			_recursive_collect_bones(child, bones)
 
 func _process(delta):
 	if not root_bone or not child_bone:
 		return
 
-	# Теперь все координаты локальные внутри center_area
 	var root_transform = root_bone.global_transform
 	var child_transform = child_bone.global_transform
 
@@ -255,12 +291,11 @@ func _on_center_area_draw():
 			var colors = PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE])
 			center_area.draw_polygon(points, colors, tri_uvs, texture)
 
-	# Рисуем кости (все в локальных координатах center_area)
+	# Рисуем кости (все, включая вложенные)
 	if skeleton:
-		for child in skeleton.get_children():
-			if child is Bone2D:
-				var bone = child as Bone2D
-				# Теперь global_position = локальные координаты внутри center_area
+		var all_bones = _get_all_bones()
+		for bone in all_bones:
+			if bone is Bone2D:
 				var from = bone.global_position
 				var to = from
 
@@ -296,10 +331,9 @@ func _try_start_drag(local_pos: Vector2):
 	var closest_bone: Bone2D = null
 	var min_dist = BONE_SELECT_RADIUS
 
-	for child in skeleton.get_children():
-		if child is Bone2D:
-			var bone = child as Bone2D
-			# Теперь global_position = локальные координаты внутри center_area
+	var all_bones = _get_all_bones()
+	for bone in all_bones:
+		if bone is Bone2D:
 			var bone_pos = bone.global_position
 			var dist = bone_pos.distance_to(local_pos)
 			_log("Кость " + bone.name + " в " + str(bone_pos) + ", дистанция: " + str(dist))
@@ -311,7 +345,6 @@ func _try_start_drag(local_pos: Vector2):
 	if closest_bone:
 		selected_bone = closest_bone
 		is_dragging_bone = true
-		# Смещение в локальных координатах
 		drag_offset = closest_bone.global_position - local_pos
 		_log("=== ВЫБРАНА КОСТЬ ===")
 		_log("Имя: " + selected_bone.name)
@@ -323,7 +356,6 @@ func _try_start_drag(local_pos: Vector2):
 
 func _update_drag(local_pos: Vector2):
 	if is_dragging_bone and selected_bone and center_area:
-		# Перемещаем в локальных координатах
 		selected_bone.global_position = local_pos + drag_offset
 
 func _end_drag():
