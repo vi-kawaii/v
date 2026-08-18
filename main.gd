@@ -5,10 +5,25 @@ const BONE_SELECT_RADIUS = 30.0
 const DEFAULT_BONE_LENGTH = 100.0
 const DEBUG_MODE = true
 
+# TODO(P0): [Этап 1.1] Удалить лишний узел root из сцены
+#   - В файле сцены есть два узла root (один Node2D и инстанс avatar.tscn)
+#   - Они должны быть удалены, CenterArea должен быть чистым Control
+#   - Связано: Этап 1.1 плана
+
 # Узел для рисования
 var center_area: Control
 
-# Скелет и кости
+# TODO(P0): [Этап 1.2] Переход на собственную структуру данных костей
+#   - Полностью убрать использование Skeleton2D и Bone2D как узлов
+#   - Создать массив bones_data со словарями:
+#     {
+#       "name": String,
+#       "parent": int,        # индекс родителя (-1 для корневой)
+#       "position": Vector2,  # локальная позиция относительно родителя или CenterArea
+#       "rotation": float,    # локальный поворот
+#       "length": float,      # длина для отрисовки конечной кости
+#       "children": Array     # индексы дочерних костей
+#     }
 var skeleton: Skeleton2D
 var root_bone: Bone2D
 var child_bone: Bone2D
@@ -42,6 +57,9 @@ var deformed_vertices: PackedVector2Array = []
 
 # Перетаскивание
 var selected_bone: Bone2D = null
+# TODO(P1): [Этап 1.3] Переписать _try_start_drag() для работы с bones_data
+#   - Искать ближайшую кость по позициям в bones_data
+#   - Использовать _get_bone_global_position() для вычисления глобальных позиций
 var is_dragging_bone: bool = false
 var drag_offset: Vector2 = Vector2.ZERO
 
@@ -50,6 +68,7 @@ var current_tool: String = "Select"
 
 # --- Weight Paint ---
 var weight_paint_bone: Bone2D = null          # Активная кость для рисования
+# TODO(P1): [Этап 2.3] Добавить слайдеры в правую панель для радиуса и силы кисти
 var brush_radius: float = 80.0               # Радиус кисти
 var brush_strength: float = 0.3              # Сила кисти (0.0 - 1.0)
 var is_painting: bool = false                # Зажата ли кнопка мыши
@@ -113,6 +132,8 @@ func _create_skeleton_and_rig():
 
 	_log("=== СОЗДАНИЕ СКЕЛЕТА ВНУТРИ CENTER_AREA ===")
 
+	# TODO(P0): [Этап 1.2] Убрать использование Skeleton2D и Bone2D
+	#   Перейти на массив bones_data вместо узлов сцены
 	skeleton = Skeleton2D.new()
 	skeleton.name = "Skeleton"
 	center_area.add_child(skeleton)
@@ -198,6 +219,9 @@ func _on_center_area_gui_input(event: InputEvent):
 			if is_dragging_bone:
 				_end_drag()
 
+		# TODO(P1): [Этап 2.1] Возможность поворота костей колесом мыши
+		#   Добавить обработку событий колеса мыши при наведении на кость
+
 		return
 
 	# --- Режим Add Bone ---
@@ -209,6 +233,8 @@ func _on_center_area_gui_input(event: InputEvent):
 
 # --- WEIGHT PAINT: Рисование весов ---
 func _paint_weights(position: Vector2):
+	# TODO(P2): [Этап 2.3] Использовать исходные (недеформированные) позиции вершин
+	#   Сейчас используются deformed_vertices, нужно использовать mesh_vertices
 	if not weight_paint_bone:
 		_log("ОШИБКА: Не выбрана кость для Weight Paint! Правый клик по кости.", true)
 		return
@@ -283,6 +309,10 @@ func _select_weight_paint_bone(position: Vector2):
 
 # --- Add Bone ---
 func _add_bone_at_position(position: Vector2):
+	# TODO(P2): [Этап 2.2] Автоматически делать дочерней выбранной кости
+	#   Сейчас добавляется в корень, нужно использовать selected_bone
+	# TODO(P2): [Этап 2.2] Автоматическое назначение длины по умолчанию (100 px)
+	# TODO(P3): [Этап 2.2] Возможность отмены (Undo) для добавления кости
 	if not skeleton or not root_bone:
 		_log("ОШИБКА: Скелет или корневая кость не существуют!", true)
 		return
@@ -338,8 +368,20 @@ func _recursive_collect_bones(node: Node, bones: Array):
 			bones.append(child)
 			_recursive_collect_bones(child, bones)
 
+# TODO(P0): [Этап 1.3] Переписать функции работы с костями для bones_data
+#   - _add_bone_at_position() — добавляет новую запись в bones_data
+#   - _try_start_drag() — ищет ближайшую кость по позициям в bones_data
+#   - _update_drag() — обновляет позицию в bones_data
+#   - _get_all_bones() — возвращает bones_data (или копию)
+#   - _get_bone_global_position(bone_index) — вычисляет глобальную позицию рекурсивно
+#   - _get_bone_global_rotation(bone_index) — вычисляет глобальный поворот
+
 # --- Process ---
 func _process(delta):
+	# TODO(P0): [Этап 1.4] Переписать деформацию меша для работы с bones_data
+	#   В _process() для каждой вершины:
+	#   - Пройти по всем костям, получить их глобальные позиции и повороты
+	#   - Применить формулу линейного смешивания (Linear Blend Skinning) с весами
 	if not root_bone or not child_bone:
 		return
 
@@ -369,6 +411,10 @@ func _process(delta):
 
 # --- Отрисовка ---
 func _on_center_area_draw():
+	# TODO(P0): [Этап 1.5] Переписать отрисовку для работы с bones_data
+	#   - Рисовать кости как линии от глобальной позиции кости до позиции её первого ребёнка
+	#   - Или по направлению поворота, если нет детей
+	#   - В режиме Weight Paint рисовать точки весов и круг кисти
 	if not center_area or not texture:
 		return
 
@@ -490,6 +536,9 @@ func _on_center_area_draw():
 
 # --- Перетаскивание ---
 func _try_start_drag(local_pos: Vector2):
+	# TODO(P0): [Этап 1.3] Переписать для работы с bones_data
+	#   - Искать ближайшую кость по позициям в bones_data
+	#   - Использовать _get_bone_global_position()
 	if not skeleton or not center_area:
 		return
 
@@ -523,6 +572,7 @@ func _try_start_drag(local_pos: Vector2):
 		_log("Кость не найдена в радиусе " + str(BONE_SELECT_RADIUS))
 
 func _update_drag(local_pos: Vector2):
+	# TODO(P0): [Этап 1.3] Обновлять позицию в bones_data
 	if is_dragging_bone and selected_bone and center_area:
 		selected_bone.global_position = local_pos + drag_offset
 
@@ -532,6 +582,42 @@ func _end_drag():
 		is_dragging_bone = false
 		selected_bone = null
 		center_area.queue_redraw()
+
+# TODO(P1): [Этап 2.4] Панель свойств (RightPanel)
+#   - Отображать свойства выбранной кости: имя, позиция, поворот, длина
+#   - Поля для редактирования этих свойств
+#   - Кнопка удаления кости
+
+# TODO(P1): [Этап 2.5] Дерево иерархии костей
+#   - В правой панели отображать список костей с отступами (родитель/ребёнок)
+#   - Клик по имени — выбор кости
+
+# TODO(P1): [Этап 3] Сохранение и загрузка
+#   - JSON формат с bones, mesh_vertices, mesh_uvs, mesh_indices, vertex_bone_weights, texture_path
+#   - Кнопки Save / Load в верхней панели
+#   - FileDialog для выбора пути
+
+# TODO(P2): [Этап 4] Анимация
+#   - Таймлайн (BottomPanel) с шкалой времени
+#   - Кнопки Play / Pause / Stop
+#   - Дорожки для каждой кости
+#   - Ключевые кадры при перемещении/повороте кости в режиме Animate
+#   - Интерполяция между ключами
+
+# TODO(P2): [Этап 5] Импорт изображений и создание меша
+#   - FileDialog для загрузки текстуры
+#   - Автоматическое создание прямоугольного меша под размер текстуры
+#   - Автоматическое назначение UV
+
+# TODO(P3): [Этап 6] Трекинг (OSC)
+#   - Приём OSC через PacketPeerUDP
+#   - GUI-таблица для маппинга OSC-адрес → кость → свойство
+
+# TODO(P3): [Этап 7] Полировка и дополнительные возможности
+#   - Undo/Redo для всех действий
+#   - Экспорт анимации в GIF/видео
+#   - Морфинг (блендшейпы)
+#   - Физика (покачивание волос, одежды)
 
 # --- Отладка ---
 func _input(event: InputEvent):
