@@ -28,7 +28,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gdterm/plugin.cfg")
+enabled=PackedStringArray("res://addons/simple_git_commit/plugin.cfg")
 
 [physics]
 
