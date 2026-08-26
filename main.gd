@@ -13,17 +13,24 @@ const DEBUG_MODE = true
 # Узел для рисования
 var center_area: Control
 
-# TODO(P0): [Этап 1.2] Переход на собственную структуру данных костей
-#   - Полностью убрать использование Skeleton2D и Bone2D как узлов
-#   - Создать массив bones_data со словарями:
-#     {
-#       "name": String,
-#       "parent": int,        # индекс родителя (-1 для корневой)
-#       "position": Vector2,  # локальная позиция относительно родителя или CenterArea
-#       "rotation": float,    # локальный поворот
-#       "length": float,      # длина для отрисовки конечной кости
-#       "children": Array     # индексы дочерних костей
-#     }
+var bones_data = [
+	{
+		"name": "Root",
+		"parent": -1,
+		"position": Vector2.ZERO,
+		"rotation": 0.0,
+		"length": DEFAULT_BONE_LENGTH,
+		"children": [1]
+	},
+	{
+		"name": "Child",
+		"parent": 0,
+		"position": Vector2(0, 150),
+		"rotation": 0.0,
+		"length": DEFAULT_BONE_LENGTH,
+		"children": []
+	}
+]
 var skeleton: Skeleton2D
 var root_bone: Bone2D
 var child_bone: Bone2D
@@ -132,38 +139,53 @@ func _create_skeleton_and_rig():
 
 	_log("=== СОЗДАНИЕ СКЕЛЕТА ВНУТРИ CENTER_AREA ===")
 
-	# TODO(P0): [Этап 1.2] Убрать использование Skeleton2D и Bone2D
-	#   Перейти на массив bones_data вместо узлов сцены
+	# Пока Skeleton2D/Bone2D остаются визуальным представлением bones_data.
 	skeleton = Skeleton2D.new()
 	skeleton.name = "Skeleton"
 	center_area.add_child(skeleton)
 	_log("Скелет добавлен в center_area")
 
+	# Root
 	root_bone = Bone2D.new()
-	root_bone.name = "Root"
+	root_bone.name = bones_data[0]["name"]
+
 	var center_pos = center_area.size / 2
 	root_bone.position = center_pos
+	root_bone.rotation = bones_data[0]["rotation"]
+
 	skeleton.add_child(root_bone)
 	_log("Root создан в позиции: " + str(root_bone.position))
 
+	# Child
 	child_bone = Bone2D.new()
-	child_bone.name = "Child"
-	child_bone.position = Vector2(0, 150)
+	child_bone.name = bones_data[1]["name"]
+	child_bone.position = bones_data[1]["position"]
+	child_bone.rotation = bones_data[1]["rotation"]
+
 	root_bone.add_child(child_bone)
+
 	_log("Child создан, локальная позиция: " + str(child_bone.position))
 	_log("Child глобальная позиция (относительно center_area): " + str(child_bone.global_position))
 
+	# Тестовая текстура
 	var image = Image.create(256, 256, false, Image.FORMAT_RGBA8)
 	for y in range(256):
 		for x in range(256):
-			image.set_pixel(x, y, Color(float(x)/255.0, float(y)/255.0, 0.5, 1.0))
+			image.set_pixel(
+				x,
+				y,
+				Color(float(x) / 255.0, float(y) / 255.0, 0.5, 1.0)
+			)
+
 	texture = ImageTexture.create_from_image(image)
 
+	# Начальное состояние меша
 	deformed_vertices = mesh_vertices.duplicate()
 
 	_log("=== РИГ ГОТОВ ===")
 	_log("Размер CenterArea: " + str(center_area.size))
 	_log("Root.position: " + str(root_bone.position))
+	_log("Child.position: " + str(child_bone.position))
 	_log("Child.global_position (локально в center_area): " + str(child_bone.global_position))
 
 	center_area.queue_redraw()
